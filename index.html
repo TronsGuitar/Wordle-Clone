@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Clone</title>
+    
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for parsing JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom tweaks for dark mode aesthetics */
+        body { background-color: #111827; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONS (Inline SVGs to avoid dependencies) ---
+        const RefreshCw = ({ size = 20, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+        );
+        const Delete = ({ size = 20, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M20 5H9l-7 7 7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+        );
+        const Trophy = ({ size = 20, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        );
+        const AlertCircle = ({ size = 20, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        );
+        const X = ({ size = 20, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        );
+
+        // --- WORD DATA ---
+        const FALLBACK_WORDS = [
+            "ABUSE", "ADULT", "AGENT", "ANGER", "APPLE", "AWARD", "BASIS", "BEACH", "BIRTH", "BLOCK", 
+            "BLOOD", "BOARD", "BRAIN", "BREAD", "BREAK", "BROWN", "BUYER", "CAUSE", "CHAIN", "CHAIR", 
+            "CHEST", "CHIEF", "CHILD", "CHINA", "CLAIM", "CLASS", "CLOCK", "COACH", "COAST", "COURT", 
+            "COVER", "CREAM", "CRIME", "CROSS", "CROWD", "CROWN", "CYCLE", "DANCE", "DEATH", "DEPTH", 
+            "DOUBT", "DRAFT", "DRAMA", "DREAM", "DRESS", "DRINK", "DRIVE", "EARTH", "ENEMY", "ENTRY", 
+            "ERROR", "EVENT", "FAITH", "FAULT", "FIELD", "FIGHT", "FINAL", "FLOOR", "FOCUS", "FORCE", 
+            "FRAME", "FRANK", "FRONT", "FRUIT", "GLASS", "GRANT", "GRASS", "GREEN", "GROUP", "GUIDE", 
+            "HEART", "HENRY", "HORSE", "HOTEL", "HOUSE", "IMAGE", "INDEX", "INPUT", "ISSUE", "JAPAN", 
+            "JONES", "JUDGE", "KNIFE", "LAURA", "LAYER", "LEVEL", "LEWIS", "LIGHT", "LIMIT", "LUNCH", 
+            "MAJOR", "MARCH", "MATCH", "METAL", "MODEL", "MONEY", "MONTH", "MOTOR", "MOUTH", "MUSIC", 
+            "NIGHT", "NOISE", "NORTH", "NOVEL", "NURSE", "OFFER", "ORDER", "OTHER", "OWNER", "PANEL", 
+            "PAPER", "PARTY", "PEACE", "PETER", "PHASE", "PHONE", "PIECE", "PILOT", "PITCH", "PLACE", 
+            "PLANE", "PLANT", "PLATE", "POINT", "POUND", "POWER", "PRESS", "PRICE", "PRIDE", "PRIZE", 
+            "PROOF", "QUEEN", "RADIO", "RANGE", "RATIO", "REPLY", "RIGHT", "RIVER", "ROUND", "ROUTE", 
+            "RUGBY", "SCALE", "SCENE", "SCOPE", "SCORE", "SENSE", "SHAPE", "SHARE", "SHEEP", "SHEET", 
+            "SHIFT", "SHIRT", "SHOCK", "SIGHT", "SIMON", "SKILL", "SLEEP", "SMILE", "SMITH", "SMOKE", 
+            "SOUND", "SOUTH", "SPACE", "SPEED", "SPITE", "SPORT", "SQUAD", "STAFF", "STAGE", "START", 
+            "STATE", "STEAM", "STEEL", "STOCK", "STONE", "STORE", "STUDY", "STUFF", "STYLE", "SUGAR", 
+            "TABLE", "TASTE", "TERRY", "THEME", "THING", "TITLE", "TOTAL", "TOUCH", "TOWER", "TRACK", 
+            "TRADE", "TRAIN", "TREND", "TRIAL", "TRUST", "TRUTH", "UNCLE", "UNION", "UNITY", "VALUE", 
+            "VIDEO", "VISIT", "VOICE", "WASTE", "WATCH", "WATER", "WHILE", "WHITE", "WHOLE", "WOMAN", 
+            "WORLD", "WORRY", "WRITE", "YOUTH"
+        ];
+        const WORD_LIST_URL = "https://raw.githubusercontent.com/charlesreid1/five-letter-words/master/sgb-words.txt";
+
+        // --- COMPONENTS ---
+
+        const Tile = ({ letter, color, isCurrent }) => {
+            let baseClasses = "w-14 h-14 border-2 flex items-center justify-center text-3xl font-bold uppercase select-none transition-all duration-500 flip-card";
+            
+            if (isCurrent && letter) {
+                baseClasses += " animate-pulse border-gray-400 text-white";
+            } else if (color === 'green') {
+                baseClasses += " bg-green-600 border-green-600 text-white";
+            } else if (color === 'yellow') {
+                baseClasses += " bg-yellow-600 border-yellow-600 text-white";
+            } else if (color === 'gray') {
+                baseClasses += " bg-gray-600 border-gray-600 text-white";
+            } else {
+                baseClasses += " border-gray-700 text-white bg-transparent";
+            }
+
+            return (
+                <div className={baseClasses}>
+                    {letter}
+                </div>
+            );
+        };
+
+        const Row = ({ guess, currentGuess, isCurrentRow }) => {
+            if (guess) {
+                return (
+                    <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                        {guess.map((l, i) => (
+                            <Tile key={i} letter={l.key} color={l.color} />
+                        ))}
+                    </div>
+                );
+            }
+
+            if (isCurrentRow) {
+                let letters = currentGuess.split('');
+                return (
+                    <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                        {[...Array(5)].map((_, i) => (
+                            <Tile key={i} letter={letters[i]} isCurrent={true} />
+                        ))}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                    {[...Array(5)].map((_, i) => (
+                        <Tile key={i} />
+                    ))}
+                </div>
+            );
+        };
+
+        const Key = ({ letter, color, onClick, isWide }) => {
+            let bgClass = "bg-gray-600 hover:bg-gray-500 text-white";
+            if (color === 'green') bgClass = "bg-green-600 hover:bg-green-500 text-white";
+            if (color === 'yellow') bgClass = "bg-yellow-600 hover:bg-yellow-500 text-white";
+            if (color === 'gray') bgClass = "bg-gray-800 hover:bg-gray-700 text-gray-400"; 
+
+            return (
+                <button
+                    onClick={() => onClick(letter)}
+                    className={`${bgClass} ${isWide ? 'flex-[1.5]' : 'flex-1'} h-14 rounded font-bold text-sm sm:text-base uppercase flex items-center justify-center transition-colors shadow-sm select-none`}
+                >
+                    {letter}
+                </button>
+            );
+        };
+
+        function App() {
+            const [wordList, setWordList] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            const [solution, setSolution] = useState('');
+            const [guesses, setGuesses] = useState([...Array(6)]);
+            const [currentGuess, setCurrentGuess] = useState('');
+            const [turn, setTurn] = useState(0);
+            const [isCorrect, setIsCorrect] = useState(false);
+            const [usedKeys, setUsedKeys] = useState({});
+            const [showModal, setShowModal] = useState(false);
+            const [message, setMessage] = useState(null);
+
+            // Fetch Words
+            useEffect(() => {
+                const fetchWords = async () => {
+                    try {
+                        const response = await fetch(WORD_LIST_URL);
+                        if (!response.ok) throw new Error("Network response was not ok");
+                        const text = await response.text();
+                        const words = text.split('\n')
+                            .map(w => w.trim().toUpperCase())
+                            .filter(w => w.length === 5);
+                        
+                        setWordList(words.length > 0 ? words : FALLBACK_WORDS);
+                    } catch (error) {
+                        console.error("Failed to fetch word list, using fallback:", error);
+                        setWordList(FALLBACK_WORDS);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+                fetchWords();
+            }, []);
+
+            // Set Solution
+            useEffect(() => {
+                if (wordList.length > 0 && !solution) {
+                    setSolution(wordList[Math.floor(Math.random() * wordList.length)]);
+                }
+            }, [wordList, solution]);
+
+            // Logic
+            const formatGuess = () => {
+                let solutionChars = [...solution];
+                let formattedGuess = [...currentGuess].map((l) => ({ key: l, color: 'gray' }));
+
+                // Green Pass
+                formattedGuess.forEach((l, i) => {
+                    if (solutionChars[i] === l.key) {
+                        formattedGuess[i].color = 'green';
+                        solutionChars[i] = null;
+                    }
+                });
+
+                // Yellow Pass
+                formattedGuess.forEach((l, i) => {
+                    if (l.color !== 'green' && solutionChars.includes(l.key)) {
+                        formattedGuess[i].color = 'yellow';
+                        solutionChars[solutionChars.indexOf(l.key)] = null;
+                    }
+                });
+                return formattedGuess;
+            };
+
+            const addNewGuess = (formattedGuess) => {
+                if (currentGuess === solution) {
+                    setIsCorrect(true);
+                    setTimeout(() => setShowModal(true), 1500);
+                }
+                setGuesses((prevGuesses) => {
+                    let newGuesses = [...prevGuesses];
+                    newGuesses[turn] = formattedGuess;
+                    return newGuesses;
+                });
+                setTurn((prev) => prev + 1);
+                setUsedKeys((prev) => {
+                    let newKeys = { ...prev };
+                    formattedGuess.forEach((l) => {
+                        const currentColor = newKeys[l.key];
+                        if (l.color === 'green') { newKeys[l.key] = 'green'; return; }
+                        if (l.color === 'yellow' && currentColor !== 'green') { newKeys[l.key] = 'yellow'; return; }
+                        if (l.color === 'gray' && currentColor !== 'green' && currentColor !== 'yellow') { newKeys[l.key] = 'gray'; return; }
+                    });
+                    return newKeys;
+                });
+                setCurrentGuess('');
+                if (turn === 5 && currentGuess !== solution) {
+                    setTimeout(() => setShowModal(true), 1500);
+                }
+            };
+
+            const handleKeyup = ({ key }) => {
+                if (isLoading || isCorrect || turn > 5) return;
+
+                if (key === 'Enter') {
+                    if (currentGuess.length !== 5) {
+                        showMessage("Not enough letters");
+                        return;
+                    }
+                    if (!wordList.includes(currentGuess)) {
+                        showMessage("Word not in list");
+                        return;
+                    }
+                    const formatted = formatGuess();
+                    addNewGuess(formatted);
+                }
+                if (key === 'Backspace') {
+                    setCurrentGuess((prev) => prev.slice(0, -1));
+                    return;
+                }
+                if (/^[A-Za-z]$/.test(key)) {
+                    if (currentGuess.length < 5) {
+                        setCurrentGuess((prev) => (prev + key).toUpperCase());
+                    }
+                }
+            };
+
+            useEffect(() => {
+                window.addEventListener('keyup', handleKeyup);
+                return () => window.removeEventListener('keyup', handleKeyup);
+            }, [handleKeyup, isLoading, isCorrect, turn, currentGuess, wordList]);
+
+            const showMessage = (msg) => {
+                setMessage(msg);
+                setTimeout(() => setMessage(null), 2000);
+            };
+
+            const resetGame = () => {
+                setTurn(0);
+                setCurrentGuess('');
+                setGuesses([...Array(6)]);
+                setIsCorrect(false);
+                setUsedKeys({});
+                setSolution(wordList[Math.floor(Math.random() * wordList.length)]);
+                setShowModal(false);
+            };
+
+            const keys1 = ['Q','W','E','R','T','Y','U','I','O','P'];
+            const keys2 = ['A','S','D','F','G','H','J','K','L'];
+            const keys3 = ['Z','X','C','V','B','N','M'];
+
+            if (isLoading) {
+                return (
+                    <div className="flex h-screen w-full bg-gray-900 text-gray-100 items-center justify-center">
+                        <div className="flex flex-col items-center gap-4">
+                        <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="font-bold tracking-widest animate-pulse">LOADING DICTIONARY...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex flex-col h-screen w-full bg-gray-900 text-gray-100 items-center overflow-hidden font-sans">
+                    {/* Header */}
+                    <header className="flex items-center justify-between w-full max-w-lg px-4 py-3 border-b border-gray-800">
+                        <div className="w-8"></div>
+                        <h1 className="text-3xl font-bold tracking-wider text-gray-100">WORDLE</h1>
+                        <div className="w-8 flex justify-end">
+                            <button onClick={resetGame} className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition">
+                                <RefreshCw size={20} />
+                            </button>
+                        </div>
+                    </header>
+
+                    {/* Toast */}
+                    {message && (
+                        <div className="absolute top-20 z-50 bg-gray-100 text-black px-4 py-2 rounded font-bold animate-bounce shadow-lg">
+                            {message}
+                        </div>
+                    )}
+
+                    {/* Grid */}
+                    <div className="flex-grow flex items-center justify-center p-4">
+                        <div className="max-w-[350px]">
+                            {guesses.map((g, i) => (
+                                <Row key={i} guess={g} currentGuess={currentGuess} isCurrentRow={turn === i} />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Keyboard */}
+                    <div className="w-full max-w-lg px-2 pb-8">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-center gap-1.5">
+                                {keys1.map(char => (
+                                    <Key key={char} letter={char} color={usedKeys[char]} onClick={() => handleKeyup({ key: char })} />
+                                ))}
+                            </div>
+                            <div className="flex justify-center gap-1.5">
+                                <div className="flex-[0.5]" />
+                                {keys2.map(char => (
+                                    <Key key={char} letter={char} color={usedKeys[char]} onClick={() => handleKeyup({ key: char })} />
+                                ))}
+                                <div className="flex-[0.5]" />
+                            </div>
+                            <div className="flex justify-center gap-1.5">
+                                <Key letter="ENTER" isWide onClick={() => handleKeyup({ key: 'Enter' })} />
+                                {keys3.map(char => (
+                                    <Key key={char} letter={char} color={usedKeys[char]} onClick={() => handleKeyup({ key: char })} />
+                                ))}
+                                <Key letter={<Delete size={20} />} isWide onClick={() => handleKeyup({ key: 'Backspace' })} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Modal */}
+                    {showModal && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                            <div className="bg-gray-800 border border-gray-700 p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-all scale-100">
+                                <div className="flex justify-end">
+                                    <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+                                <div className="flex justify-center mb-4">
+                                    {isCorrect ? (
+                                        <Trophy size={48} className="text-yellow-500" />
+                                    ) : (
+                                        <AlertCircle size={48} className="text-red-500" />
+                                    )}
+                                </div>
+                                <h2 className="text-2xl font-bold mb-2 text-white">
+                                    {isCorrect ? 'Splendid!' : 'Game Over'}
+                                </h2>
+                                <p className="text-gray-300 mb-6 text-lg">
+                                    The word was <span className="font-bold text-green-400 uppercase tracking-widest">{solution}</span>
+                                </p>
+                                <button 
+                                    onClick={resetGame}
+                                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 w-full"
+                                >
+                                    Play Again
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
