@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wordle Clone</title>
     
     <!-- Tailwind CSS for Styling -->
@@ -16,8 +16,25 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        /* Custom tweaks for dark mode aesthetics */
-        body { background-color: #111827; }
+        /* Locks the app perfectly to the iframe boundaries, preventing any scrolling */
+        html, body { 
+            background-color: #111827; 
+            margin: 0; 
+            padding: 0;
+            width: 100%; 
+            height: 100%; 
+            position: fixed; 
+            top: 0;
+            left: 0;
+            overflow: hidden; 
+            touch-action: none; /* Stops pinch-zoom and scroll bouncing */
+        }
+        #root { 
+            width: 100%; 
+            height: 100%; 
+            display: flex;
+            flex-direction: column;
+        }
     </style>
 </head>
 <body>
@@ -26,7 +43,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- ICONS (Inline SVGs to avoid dependencies) ---
+        // --- ICONS ---
         const RefreshCw = ({ size = 20, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
         );
@@ -45,35 +62,19 @@
 
         // --- WORD DATA ---
         const FALLBACK_WORDS = [
-            "ABUSE", "ADULT", "AGENT", "ANGER", "APPLE", "AWARD", "BASIS", "BEACH", "BIRTH", "BLOCK", 
-            "BLOOD", "BOARD", "BRAIN", "BREAD", "BREAK", "BROWN", "BUYER", "CAUSE", "CHAIN", "CHAIR", 
-            "CHEST", "CHIEF", "CHILD", "CHINA", "CLAIM", "CLASS", "CLOCK", "COACH", "COAST", "COURT", 
-            "COVER", "CREAM", "CRIME", "CROSS", "CROWD", "CROWN", "CYCLE", "DANCE", "DEATH", "DEPTH", 
-            "DOUBT", "DRAFT", "DRAMA", "DREAM", "DRESS", "DRINK", "DRIVE", "EARTH", "ENEMY", "ENTRY", 
-            "ERROR", "EVENT", "FAITH", "FAULT", "FIELD", "FIGHT", "FINAL", "FLOOR", "FOCUS", "FORCE", 
-            "FRAME", "FRANK", "FRONT", "FRUIT", "GLASS", "GRANT", "GRASS", "GREEN", "GROUP", "GUIDE", 
-            "HEART", "HENRY", "HORSE", "HOTEL", "HOUSE", "IMAGE", "INDEX", "INPUT", "ISSUE", "JAPAN", 
-            "JONES", "JUDGE", "KNIFE", "LAURA", "LAYER", "LEVEL", "LEWIS", "LIGHT", "LIMIT", "LUNCH", 
-            "MAJOR", "MARCH", "MATCH", "METAL", "MODEL", "MONEY", "MONTH", "MOTOR", "MOUTH", "MUSIC", 
-            "NIGHT", "NOISE", "NORTH", "NOVEL", "NURSE", "OFFER", "ORDER", "OTHER", "OWNER", "PANEL", 
-            "PAPER", "PARTY", "PEACE", "PETER", "PHASE", "PHONE", "PIECE", "PILOT", "PITCH", "PLACE", 
-            "PLANE", "PLANT", "PLATE", "POINT", "POUND", "POWER", "PRESS", "PRICE", "PRIDE", "PRIZE", 
-            "PROOF", "QUEEN", "RADIO", "RANGE", "RATIO", "REPLY", "RIGHT", "RIVER", "ROUND", "ROUTE", 
-            "RUGBY", "SCALE", "SCENE", "SCOPE", "SCORE", "SENSE", "SHAPE", "SHARE", "SHEEP", "SHEET", 
-            "SHIFT", "SHIRT", "SHOCK", "SIGHT", "SIMON", "SKILL", "SLEEP", "SMILE", "SMITH", "SMOKE", 
-            "SOUND", "SOUTH", "SPACE", "SPEED", "SPITE", "SPORT", "SQUAD", "STAFF", "STAGE", "START", 
-            "STATE", "STEAM", "STEEL", "STOCK", "STONE", "STORE", "STUDY", "STUFF", "STYLE", "SUGAR", 
-            "TABLE", "TASTE", "TERRY", "THEME", "THING", "TITLE", "TOTAL", "TOUCH", "TOWER", "TRACK", 
-            "TRADE", "TRAIN", "TREND", "TRIAL", "TRUST", "TRUTH", "UNCLE", "UNION", "UNITY", "VALUE", 
-            "VIDEO", "VISIT", "VOICE", "WASTE", "WATCH", "WATER", "WHILE", "WHITE", "WHOLE", "WOMAN", 
-            "WORLD", "WORRY", "WRITE", "YOUTH"
+            "APPLE", "BEACH", "BRAIN", "BREAD", "CHAIR", "CLOCK", "DANCE", "DREAM", 
+            "EARTH", "FIELD", "GHOST", "HEART", "HOUSE", "IMAGE", "JUICE", "KNIFE", 
+            "LIGHT", "MONEY", "MUSIC", "NIGHT", "OCEAN", "PARTY", "PEACE", "PLANT", 
+            "RADIO", "RIVER", "SHIRT", "SLEEP", "SMILE", "SPACE", "STORM", "TABLE", 
+            "TRAIN", "TRUST", "VOICE", "WATER", "WHILE", "WORLD", "YOUTH"
         ];
         const WORD_LIST_URL = "https://raw.githubusercontent.com/charlesreid1/five-letter-words/master/sgb-words.txt";
 
         // --- COMPONENTS ---
 
         const Tile = ({ letter, color, isCurrent }) => {
-            let baseClasses = "w-14 h-14 border-2 flex items-center justify-center text-3xl font-bold uppercase select-none transition-all duration-500 flip-card";
+            // Changed from fixed w-14 h-14 to w-full h-full so it adapts to the grid size
+            let baseClasses = "w-full h-full border-2 flex items-center justify-center text-2xl sm:text-3xl font-bold uppercase select-none transition-all duration-500 flip-card rounded-sm";
             
             if (isCurrent && letter) {
                 baseClasses += " animate-pulse border-gray-400 text-white";
@@ -95,9 +96,11 @@
         };
 
         const Row = ({ guess, currentGuess, isCurrentRow }) => {
+            const rowClass = "grid grid-cols-5 gap-1.5 w-full h-full";
+
             if (guess) {
                 return (
-                    <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                    <div className={rowClass}>
                         {guess.map((l, i) => (
                             <Tile key={i} letter={l.key} color={l.color} />
                         ))}
@@ -108,7 +111,7 @@
             if (isCurrentRow) {
                 let letters = currentGuess.split('');
                 return (
-                    <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                    <div className={rowClass}>
                         {[...Array(5)].map((_, i) => (
                             <Tile key={i} letter={letters[i]} isCurrent={true} />
                         ))}
@@ -117,7 +120,7 @@
             }
 
             return (
-                <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                <div className={rowClass}>
                     {[...Array(5)].map((_, i) => (
                         <Tile key={i} />
                     ))}
@@ -131,10 +134,11 @@
             if (color === 'yellow') bgClass = "bg-yellow-600 hover:bg-yellow-500 text-white";
             if (color === 'gray') bgClass = "bg-gray-800 hover:bg-gray-700 text-gray-400"; 
 
+            // Reduced default height slightly to fit better in tight iframes
             return (
                 <button
                     onClick={() => onClick(letter)}
-                    className={`${bgClass} ${isWide ? 'flex-[1.5]' : 'flex-1'} h-14 rounded font-bold text-sm sm:text-base uppercase flex items-center justify-center transition-colors shadow-sm select-none`}
+                    className={`${bgClass} ${isWide ? 'flex-[1.5] text-xs sm:text-sm' : 'flex-1 text-sm sm:text-base'} h-12 sm:h-14 rounded font-bold uppercase flex items-center justify-center transition-colors shadow-sm select-none`}
                 >
                     {letter}
                 </button>
@@ -153,7 +157,6 @@
             const [showModal, setShowModal] = useState(false);
             const [message, setMessage] = useState(null);
 
-            // Fetch Words
             useEffect(() => {
                 const fetchWords = async () => {
                     try {
@@ -166,7 +169,6 @@
                         
                         setWordList(words.length > 0 ? words : FALLBACK_WORDS);
                     } catch (error) {
-                        console.error("Failed to fetch word list, using fallback:", error);
                         setWordList(FALLBACK_WORDS);
                     } finally {
                         setIsLoading(false);
@@ -175,19 +177,16 @@
                 fetchWords();
             }, []);
 
-            // Set Solution
             useEffect(() => {
                 if (wordList.length > 0 && !solution) {
                     setSolution(wordList[Math.floor(Math.random() * wordList.length)]);
                 }
             }, [wordList, solution]);
 
-            // Logic
             const formatGuess = () => {
                 let solutionChars = [...solution];
                 let formattedGuess = [...currentGuess].map((l) => ({ key: l, color: 'gray' }));
 
-                // Green Pass
                 formattedGuess.forEach((l, i) => {
                     if (solutionChars[i] === l.key) {
                         formattedGuess[i].color = 'green';
@@ -195,7 +194,6 @@
                     }
                 });
 
-                // Yellow Pass
                 formattedGuess.forEach((l, i) => {
                     if (l.color !== 'green' && solutionChars.includes(l.key)) {
                         formattedGuess[i].color = 'yellow';
@@ -284,7 +282,7 @@
 
             if (isLoading) {
                 return (
-                    <div className="flex h-screen w-full bg-gray-900 text-gray-100 items-center justify-center">
+                    <div className="flex h-full w-full bg-gray-900 text-gray-100 items-center justify-center">
                         <div className="flex flex-col items-center gap-4">
                         <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                         <p className="font-bold tracking-widest animate-pulse">LOADING DICTIONARY...</p>
@@ -294,11 +292,11 @@
             }
 
             return (
-                <div className="flex flex-col h-screen w-full bg-gray-900 text-gray-100 items-center overflow-hidden font-sans">
+                <div className="flex flex-col h-full w-full bg-gray-900 text-gray-100 items-center justify-between overflow-hidden font-sans">
                     {/* Header */}
-                    <header className="flex items-center justify-between w-full max-w-lg px-4 py-3 border-b border-gray-800">
+                    <header className="flex-none flex items-center justify-between w-full max-w-lg px-4 py-2 sm:py-3 border-b border-gray-800">
                         <div className="w-8"></div>
-                        <h1 className="text-3xl font-bold tracking-wider text-gray-100">WORDLE</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold tracking-wider text-gray-100">WORDLE</h1>
                         <div className="w-8 flex justify-end">
                             <button onClick={resetGame} className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded-full transition">
                                 <RefreshCw size={20} />
@@ -308,36 +306,36 @@
 
                     {/* Toast */}
                     {message && (
-                        <div className="absolute top-20 z-50 bg-gray-100 text-black px-4 py-2 rounded font-bold animate-bounce shadow-lg">
+                        <div className="absolute top-16 z-50 bg-gray-100 text-black px-4 py-2 rounded font-bold animate-bounce shadow-lg">
                             {message}
                         </div>
                     )}
 
-                    {/* Grid */}
-                    <div className="flex-grow flex items-center justify-center p-4">
-                        <div className="max-w-[350px]">
+                    {/* Dynamic Grid Container - Shrinks based on available iframe height */}
+                    <div className="flex-grow flex items-center justify-center w-full min-h-0 p-2 sm:p-4">
+                        <div className="grid grid-rows-6 gap-1.5 w-full h-full max-h-[400px] max-w-[320px]">
                             {guesses.map((g, i) => (
                                 <Row key={i} guess={g} currentGuess={currentGuess} isCurrentRow={turn === i} />
                             ))}
                         </div>
                     </div>
 
-                    {/* Keyboard */}
-                    <div className="w-full max-w-lg px-2 pb-8">
-                        <div className="flex flex-col gap-2">
-                            <div className="flex justify-center gap-1.5">
+                    {/* Keyboard - Pinned to bottom naturally by flex layout */}
+                    <div className="flex-none w-full max-w-lg px-1 sm:px-2 pb-2 sm:pb-4">
+                        <div className="flex flex-col gap-1.5">
+                            <div className="flex justify-center gap-1 sm:gap-1.5">
                                 {keys1.map(char => (
                                     <Key key={char} letter={char} color={usedKeys[char]} onClick={() => handleKeyup({ key: char })} />
                                 ))}
                             </div>
-                            <div className="flex justify-center gap-1.5">
+                            <div className="flex justify-center gap-1 sm:gap-1.5">
                                 <div className="flex-[0.5]" />
                                 {keys2.map(char => (
                                     <Key key={char} letter={char} color={usedKeys[char]} onClick={() => handleKeyup({ key: char })} />
                                 ))}
                                 <div className="flex-[0.5]" />
                             </div>
-                            <div className="flex justify-center gap-1.5">
+                            <div className="flex justify-center gap-1 sm:gap-1.5">
                                 <Key letter="ENTER" isWide onClick={() => handleKeyup({ key: 'Enter' })} />
                                 {keys3.map(char => (
                                     <Key key={char} letter={char} color={usedKeys[char]} onClick={() => handleKeyup({ key: char })} />
@@ -350,7 +348,7 @@
                     {/* Modal */}
                     {showModal && (
                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-                            <div className="bg-gray-800 border border-gray-700 p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-all scale-100">
+                            <div className="bg-gray-800 border border-gray-700 p-6 sm:p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-all scale-100">
                                 <div className="flex justify-end">
                                     <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white">
                                         <X size={24} />
@@ -387,4 +385,3 @@
     </script>
 </body>
 </html>
-
